@@ -46,16 +46,16 @@ export default {
         .setTitle('☠️ DEATH COUNTDOWN')
         .setDescription(
           `**${interaction.user.tag}**\n\n` +
-          `💀 Your completely fictional death is in:\n\n` +
+          `💀 You will fucking die in:\n\n` +
           `# ⏳ ${formatTime(remaining)}\n\n` +
-          `*This countdown is completely random and fictional.*`
+          `*This is fucking REAL as fuck, I asked verity*`
         )
         .setColor('#ED4245')
         .setThumbnail(
           interaction.user.displayAvatarURL({ size: 256 })
         )
         .setFooter({
-          text: 'TitanBot • Completely Fake Countdown',
+          text: 'Mr. Robot • Real fucking countdown',
         })
         .setTimestamp();
 
@@ -78,7 +78,7 @@ export default {
               .setTitle('💀 DEATH COUNTDOWN')
               .setDescription(
                 `**${interaction.user.tag}**\n\n` +
-                `# ☠️ TIME'S UP\n\n` +
+                `# ☠️ TIME'S UP, YOU SHALL FUCKING PERISH!\n\n` +
                 `Your completely fictional countdown has reached zero.`
               )
               .setColor('#000000')
