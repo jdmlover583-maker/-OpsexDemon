@@ -1,8 +1,23 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 
-// Adjust these to change the range of possible timeout durations
-const MIN_TIMEOUT_MINUTES = 1;
-const MAX_TIMEOUT_MINUTES = 10;
+// Adjust these to change the range of possible timeout durations (in seconds)
+const MIN_TIMEOUT_SECONDS = 5;
+const MAX_TIMEOUT_SECONDS = 28 * 24 * 60 * 60; // 28 days — Discord's hard cap on timeouts
+
+function formatDuration(totalSeconds) {
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  if (seconds) parts.push(`${seconds}s`);
+
+  return parts.length ? parts.join(' ') : '0s';
+}
 
 export default {
   data: new SlashCommandBuilder()
@@ -30,11 +45,11 @@ export default {
     const members = Array.from(eligibleMembers.values());
     const selected = members[Math.floor(Math.random() * members.length)];
 
-    // Pick a random duration between MIN and MAX (inclusive), in minutes
-    const timeoutMinutes =
-      Math.floor(Math.random() * (MAX_TIMEOUT_MINUTES - MIN_TIMEOUT_MINUTES + 1)) +
-      MIN_TIMEOUT_MINUTES;
-    const timeoutMs = timeoutMinutes * 60 * 1000;
+    // Pick a random duration between MIN and MAX (inclusive), in seconds
+    const timeoutSeconds =
+      Math.floor(Math.random() * (MAX_TIMEOUT_SECONDS - MIN_TIMEOUT_SECONDS + 1)) +
+      MIN_TIMEOUT_SECONDS;
+    const timeoutMs = timeoutSeconds * 1000;
 
     try {
       await selected.timeout(timeoutMs, 'Russian Roulette');
@@ -42,7 +57,7 @@ export default {
         .setTitle('🔫 Russian Roulette')
         .setDescription(
           `💀 **${selected.user.tag}** has been selected!\n\n` +
-          `⏱️ Timeout: **${timeoutMinutes} minute${timeoutMinutes === 1 ? '' : 's'}**`
+          `⏱️ Timeout: **${formatDuration(timeoutSeconds)}**`
         )
         .setColor('#ED4245')
         .setThumbnail(selected.user.displayAvatarURL({ size: 256 }))
