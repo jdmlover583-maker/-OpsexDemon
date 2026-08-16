@@ -41,7 +41,7 @@ export default {
     } catch (error) {
       console.error('Failed to fetch guild members:', error);
       return interaction.editReply({
-        content: '❌ I couldn\'t fetch the full member list for this server. Try again in a moment.',
+        content: '❌ KYS FAGGOT, FIX ME!',
       });
     }
 
