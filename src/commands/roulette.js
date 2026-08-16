@@ -30,18 +30,34 @@ export default {
         ephemeral: true,
       });
     }
-    const eligibleMembers = interaction.guild.members.cache.filter(
+
+    await interaction.deferReply();
+
+    // Force-fetch EVERY member in the guild (online, offline, invisible — all of them),
+    // instead of relying on the cache, which may be incomplete.
+    let allMembers;
+    try {
+      allMembers = await interaction.guild.members.fetch();
+    } catch (error) {
+      console.error('Failed to fetch guild members:', error);
+      return interaction.editReply({
+        content: '❌ I couldn\'t fetch the full member list for this server. Try again in a moment.',
+      });
+    }
+
+    const eligibleMembers = allMembers.filter(
       member =>
         !member.user.bot &&
         member.id !== interaction.client.user.id &&
         member.moderatable
     );
+
     if (eligibleMembers.size === 0) {
-      return interaction.reply({
+      return interaction.editReply({
         content: 'There are no eligible members to select.',
-        ephemeral: true,
       });
     }
+
     const members = Array.from(eligibleMembers.values());
     const selected = members[Math.floor(Math.random() * members.length)];
 
@@ -63,14 +79,14 @@ export default {
         .setThumbnail(selected.user.displayAvatarURL({ size: 256 }))
         .setFooter({ text: 'TitanBot • Russian Roulette' })
         .setTimestamp();
-      await interaction.reply({ embeds: [embed] });
+
+      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error('Roulette error:', error);
-      await interaction.reply({
+      await interaction.editReply({
         content:
           `❌ I couldn't timeout **${selected.user.tag}**.\n\n` +
           `Make sure TitanBot has **Moderate Members** permission and its role is above the selected member.`,
-        ephemeral: true,
       });
     }
   },
