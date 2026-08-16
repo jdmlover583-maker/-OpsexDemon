@@ -1,13 +1,10 @@
 import { getColor, getDefaultApplicationQuestions } from '../../config/bot.js';
-import { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { createEmbed, successEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { handleInteractionError, withErrorHandling, createError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
 import ApplicationService from '../../services/applicationService.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { logEvent, EVENT_TYPES, resolveApplicationLogChannel } from '../../services/loggingService.js';
-import { formatLogLine, resolveUserAuthor } from '../../utils/logging/logEmbeds.js';
-import { getGuildConfig } from '../../services/config/guildConfig.js';
 import { 
     getApplicationSettings, 
     getUserApplications, 
@@ -17,6 +14,9 @@ import {
     updateApplication,
     getApplicationRoleSettings
 } from '../../utils/database.js';
+
+// Channel where new applications are posted for staff review (Approve/Deny buttons)
+const APPLICATION_REVIEW_CHANNEL_ID = '1538465920282923098';
 
 function getApplicationStatusPresentation(statusValue) {
     const normalized = typeof statusValue === 'string' ? statusValue.trim().toLowerCase() : 'unknown';
@@ -170,42 +170,64 @@ export async function handleApplicationModal(interaction) {
         );
         
         await InteractionHelper.safeEditReply(interaction, { embeds: [embed], flags: ["Ephemeral"] });
-        
-        const settings = await getApplicationSettings(interaction.client, interaction.guild.id);
-        const roleSettings = await getApplicationRoleSettings(interaction.client, interaction.guild.id, roleId);
-        const guildConfig = await getGuildConfig(interaction.client, interaction.guild.id);
 
-        const logChannelId = resolveApplicationLogChannel(guildConfig, roleSettings, settings);
+        try {
+            const reviewChannel = await interaction.client.channels.fetch(APPLICATION_REVIEW_CHANNEL_ID);
 
-        if (logChannelId) {
-            const logMessage = await logEvent({
-                client: interaction.client,
-                guildId: interaction.guild.id,
-                eventType: EVENT_TYPES.APPLICATION_SUBMIT,
-                channelId: logChannelId,
-                data: {
-                    title: 'Application Submitted',
-                    lines: [
-                        formatLogLine('Applicant', `<@${interaction.user.id}> (${interaction.user.tag})`),
-                        formatLogLine('Application', applicationRole.name),
-                        formatLogLine('Role', role.name),
-                        formatLogLine('Application ID', `\`${application.id}\``),
-                    ],
-                    inlineFields: [
-                        { name: 'Status', value: '🟡 In Progress', inline: true },
-                    ],
-                    author: await resolveUserAuthor(interaction.client, interaction.user.id),
-                },
-            });
+            if (reviewChannel) {
+                const reviewEmbed = createEmbed({
+                    title: '📋 New Application Received',
+                    description:
+                        `**Applicant:** <@${interaction.user.id}> (${interaction.user.tag})\n` +
+                        `**Application:** ${applicationRole.name}\n` +
+                        `**Role:** <@&${role.id}>\n` +
+                        `**Application ID:** \`${application.id}\``,
+                    color: 'info',
+                }).setThumbnail(interaction.user.displayAvatarURL());
 
-            if (logMessage) {
+                answers.forEach((item, index) => {
+                    reviewEmbed.addFields({
+                        name: `Q${index + 1}: ${item.question}`,
+                        value: item.answer?.trim() ? item.answer : '*No answer provided*',
+                        inline: false,
+                    });
+                });
+
+                reviewEmbed.addFields({ name: 'Status', value: '🟡 In Progress', inline: true });
+                reviewEmbed.setFooter({ text: `User ID: ${interaction.user.id}` });
+                reviewEmbed.setTimestamp();
+
+                const buttonRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`app_review:approve:${application.id}`)
+                        .setLabel('Approve')
+                        .setEmoji('✅')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`app_review:deny:${application.id}`)
+                        .setLabel('Deny')
+                        .setEmoji('❌')
+                        .setStyle(ButtonStyle.Danger),
+                );
+
+                const reviewMessage = await reviewChannel.send({
+                    embeds: [reviewEmbed],
+                    components: [buttonRow],
+                });
+
                 await updateApplication(interaction.client, interaction.guild.id, application.id, {
-                    logMessageId: logMessage.id,
-                    logChannelId,
+                    logMessageId: reviewMessage.id,
+                    logChannelId: APPLICATION_REVIEW_CHANNEL_ID,
                 });
             }
+        } catch (error) {
+            logger.error('Failed to post application to review channel', {
+                error: error.message,
+                applicationId: application.id,
+                channelId: APPLICATION_REVIEW_CHANNEL_ID,
+            });
         }
-        
+
     } catch (error) {
         logger.error('Error creating application:', {
             error: error.message,
