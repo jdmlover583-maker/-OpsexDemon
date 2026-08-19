@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } from 'discord.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -64,12 +64,23 @@ export default {
         embed.setDescription(data.motd.clean.join('\n'));
       }
 
+      const files = [];
+
       if (data.icon) {
-        // mcsrvstat returns a base64 data URI for the server icon
-        embed.setThumbnail(data.icon);
+        // mcsrvstat returns the icon as a base64 data URI, e.g. "data:image/png;base64,...."
+        // Discord embeds can't use data URIs directly — they need a real URL or an attachment.
+        const base64Data = data.icon.split(',')[1];
+        if (base64Data) {
+          const iconBuffer = Buffer.from(base64Data, 'base64');
+          const attachment = new AttachmentBuilder(iconBuffer, {
+            name: 'server-icon.png',
+          });
+          files.push(attachment);
+          embed.setThumbnail('attachment://server-icon.png');
+        }
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed], files });
     } catch (error) {
       console.error('[mcserverstatus] Error fetching server status:', error);
       await interaction.editReply(
