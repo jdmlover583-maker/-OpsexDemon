@@ -33,16 +33,24 @@ export default {
         return;
       }
 
+      const decodeHtmlEntities = str =>
+        str
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#0?39;/g, "'");
+
       const players = data.players || {};
       const onlineCount = players.online ?? 0;
       const maxCount = players.max ?? '?';
-      const playerList =
-        players.list && players.list.length > 0
-          ? players.list
-              .slice(0, 20)
-              .map(p => p.name || p)
-              .join(', ')
-          : 'No players online';
+      const hasPlayerList = players.list && players.list.length > 0;
+      const playerList = hasPlayerList
+        ? players.list
+            .slice(0, 20)
+            .map(p => decodeHtmlEntities(p.name || p))
+            .join(', ')
+        : 'Player list not available for this server';
 
       const embed = new EmbedBuilder()
         .setTitle('Minecraft Server Status')
@@ -61,7 +69,9 @@ export default {
         .setTimestamp();
 
       if (data.motd?.clean?.length) {
-        embed.setDescription(data.motd.clean.join('\n'));
+        embed.setDescription(
+          data.motd.clean.map(decodeHtmlEntities).join('\n')
+        );
       }
 
       const files = [];
@@ -84,7 +94,7 @@ export default {
     } catch (error) {
       console.error('[mcserverstatus] Error fetching server status:', error);
       await interaction.editReply(
-        'Something went wrong while checking that server. Double check the address and try again.'
+        'OI YA BLOODY TWAT, ENTER THE CORRECT SERVER IP YA WANKER!'
       );
     }
   },
